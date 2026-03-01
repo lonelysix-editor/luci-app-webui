@@ -312,3 +312,31 @@ MIT License
 ---
 
 **注意**: 本项目需要配合后端 WebSocket 服务器使用，请确保后端服务正常运行。
+
+## 🔌 OpenWrt 后端（RM502Q-AE 控制）
+
+本仓库已补充 LuCI 后端控制层，可直接将 `web/` 静态资源与 `luasrc/` + `root/` 一起打包为 `luci-app-webui`。
+
+### 新增后端能力
+
+- LuCI 控制器：提供 `/admin/modem_manager/api/*` 接口
+- RM502Q-AE 控制模型：封装 AT 指令查询和配置能力
+- `rm502q_ctl` 控制脚本：通过串口设备（默认 `/dev/ttyUSB2`）下发 AT 命令和短信
+- UCI 配置：`/etc/config/rm502q`，支持 AT 口配置
+
+### API 一览
+
+- `GET /cgi-bin/luci/admin/modem_manager/api/status`：获取信号、运营商、注册状态、制式信息
+- `POST /cgi-bin/luci/admin/modem_manager/api/apn`：设置 APN（`apn/username/password/auth`）
+- `POST /cgi-bin/luci/admin/modem_manager/api/airplane`：飞行模式开关（`enable: true/false`）
+- `GET /cgi-bin/luci/admin/modem_manager/api/sms_list`：获取短信列表
+- `POST /cgi-bin/luci/admin/modem_manager/api/sms_send`：发送短信（`number/content`）
+- `POST /cgi-bin/luci/admin/modem_manager/api/at`：AT 调试透传（`command`）
+
+### 与前端对接建议
+
+前端现有页面按 WebSocket 设计；若希望最小改造落地，可在前端 `services/websocket.ts` 增加“HTTP fallback”策略：
+
+1. WebSocket 可用时继续走原实时链路；
+2. WebSocket 不可用时自动切到上述 LuCI API；
+3. AT Debug、短信、APN、飞行模式可先完成双通道兼容，逐步替换实时图表查询逻辑。

@@ -1,0 +1,25 @@
+{
+  "luci-app-webui": {
+    "description": "Grant access to RM502Q-AE modem control endpoints",
+    "read": {
+      "ubus": {
+        "session": [
+          "access"
+        ]
+      },
+      "uci": [
+        "rm502q"
+      ]
+    },
+    "write": {
+      "uci": [
+        "rm502q"
+      ],
+      "file": {
+        "/usr/bin/rm502q_ctl": [
+          "exec"
+        ]
+      }
+    }
+  }
+}

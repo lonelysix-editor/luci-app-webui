@@ -1,0 +1,4 @@
+config modem 'modem'
+	option at_device '/dev/ttyUSB2'
+	option websocket_port '8765'
+	option module 'RM502Q-AE'

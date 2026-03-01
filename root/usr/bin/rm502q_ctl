@@ -1,0 +1,77 @@
+#!/bin/sh
+
+set -eu
+
+MODE="${1:-}"
+DEV="${2:-/dev/ttyUSB2}"
+ARG1="${3:-}"
+ARG2="${4:-}"
+
+if [ ! -c "$DEV" ]; then
+  echo "ERROR: device not found: $DEV"
+  exit 1
+fi
+
+send_at() {
+  local cmd="$1"
+  stty -F "$DEV" raw speed 115200 -echo -echoe -echok -echoctl -echoke 2>/dev/null || true
+
+  # clear stale buffer
+  timeout 1 cat "$DEV" >/dev/null 2>&1 || true
+
+  printf '%s\r' "$cmd" >"$DEV"
+
+  # read modem response (until timeout)
+  timeout 3 cat "$DEV" | awk '
+    BEGIN { started = 0 }
+    {
+      if ($0 ~ /^AT/ && started == 0) {
+        started = 1
+      }
+      if (started == 1) {
+        print
+      }
+      if ($0 ~ /^(OK|ERROR)$/) {
+        exit
+      }
+    }
+  '
+}
+
+send_sms() {
+  local number="$1"
+  local text="$2"
+
+  send_at "AT+CMGF=1" >/dev/null
+  stty -F "$DEV" raw speed 115200 -echo -echoe -echok -echoctl -echoke 2>/dev/null || true
+  timeout 1 cat "$DEV" >/dev/null 2>&1 || true
+
+  printf 'AT+CMGS="%s"\r' "$number" >"$DEV"
+  sleep 1
+  printf '%b' "$text" >"$DEV"
+
+  timeout 8 cat "$DEV" | awk '
+    {
+      print
+      if ($0 ~ /^(OK|ERROR)$/) {
+        exit
+      }
+    }
+  '
+}
+
+case "$MODE" in
+  at)
+    [ -n "$ARG1" ] || { echo "ERROR: missing AT command"; exit 1; }
+    send_at "$ARG1"
+    ;;
+  sms)
+    [ -n "$ARG1" ] || { echo "ERROR: missing phone number"; exit 1; }
+    [ -n "$ARG2" ] || { echo "ERROR: missing sms text"; exit 1; }
+    send_sms "$ARG1" "$ARG2"
+    ;;
+  *)
+    echo "Usage: $0 {at|sms} <dev> <args...>"
+    exit 1
+    ;;
+esac
